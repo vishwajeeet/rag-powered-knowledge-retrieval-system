@@ -9,25 +9,49 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
-
+# CONFIGURATION
+# Docker compose me service ka naam "ollama" hai, isliye http://ollama:11434 use karenge
+OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 EMBEDDING_MODEL = "nomic-embed-text"
 CHAT_MODEL = "llama3.2"
 VECTOR_DB_DIR = "./chroma_db_local"
 
 
-def load_and_split_pdf(pdf_path: str):
-    loader = PyPDFLoader(pdf_path)
-    documents = loader.load()
+def load_and_split_documents(folder_path: str = "data/docs"):
+    all_chunks = []
+    
+    # Check if directory exists
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
+        print(f"Created directory {folder_path}. Please add PDFs here.")
+        return []
 
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=1000,
         chunk_overlap=200
     )
-    return splitter.split_documents(documents)
+
+    for file in os.listdir(folder_path):
+        if file.endswith(".pdf"):
+            path = os.path.join(folder_path, file)
+            print(f"Loading {file}...")
+
+            loader = PyPDFLoader(path)
+            documents = loader.load()
+
+            chunks = splitter.split_documents(documents)
+            all_chunks.extend(chunks)
+
+    print(f"Total chunks created: {len(all_chunks)}")
+    return all_chunks
 
 
 def build_vector_store(chunks=None):
-    embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL)
+    print(f"Connecting to Ollama at: {OLLAMA_BASE_URL}")
+    embeddings = OllamaEmbeddings(
+        model=EMBEDDING_MODEL,
+        base_url=OLLAMA_BASE_URL
+    )
 
     if os.path.exists(VECTOR_DB_DIR) and chunks is None:
         return Chroma(
@@ -45,7 +69,8 @@ def build_vector_store(chunks=None):
 def build_rag_components(vector_store):
     llm = ChatOllama(
         model=CHAT_MODEL,
-        temperature=0.1
+        temperature=0.1,
+        base_url=OLLAMA_BASE_URL
     )
 
     retriever = vector_store.as_retriever(
@@ -82,25 +107,22 @@ def generate_answer(prompt, llm, context: str, question: str) -> str:
     })
 
 
-if __name__ == "__main__":
-    pdf_path = "sample.pdf"
-
-    if not os.path.exists(pdf_path):
-        print("PDF file not found.")
-        sys.exit(1)
+def initialize_rag():
+    DOCS_FOLDER = "data/docs"
 
     if not os.path.exists(VECTOR_DB_DIR):
-        chunks = load_and_split_pdf(pdf_path)
-        vector_store = build_vector_store(chunks)
+        print("Building vector database from documents...")
+        chunks = load_and_split_documents(DOCS_FOLDER)
+        if not chunks:
+            print("No documents found or chunks created. Skipping vector store creation.")
+            # Dummy return to prevent crash if empty
+            embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
+            vector_store = Chroma(embedding_function=embeddings, persist_directory=VECTOR_DB_DIR)
+        else:
+            vector_store = build_vector_store(chunks)
     else:
+        print("Loading existing vector database...")
         vector_store = build_vector_store()
 
     retriever, prompt, llm = build_rag_components(vector_store)
-
-    question = "What is the main topic of this document?"
-
-    context, retrieved_docs = retrieve_context(retriever, question)
-    answer = generate_answer(prompt, llm, context, question)
-
-    print("Answer:")
-    print(answer)
+    return retriever, prompt, llm
