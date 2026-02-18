@@ -2,7 +2,7 @@
 
 A fully **local**, **privacy-first** Retrieval-Augmented Generation (RAG) system that answers questions from your PDF documents using open-source LLMs — no cloud, no API keys, no data leaving your machine.
 
-> 🎥 **[Watch Demo Video](https://your-demo-link-here.com)** ← *(update this link)*
+> 🎥 **[Watch Demo Video](https://drive.google.com/file/d/1uipqP8gYQwSaUNrT-oetDLpIZFhmk60W/view?usp=sharing)** 
 
 ---
 ## 🧩 Problem this solves
