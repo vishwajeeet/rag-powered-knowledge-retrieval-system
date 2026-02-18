@@ -1,5 +1,4 @@
 import os
-import sys
 from typing import List, Tuple
 
 from langchain_community.document_loaders import PyPDFLoader
@@ -10,7 +9,6 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # CONFIGURATION
-# Docker compose me service ka naam "ollama" hai, isliye http://ollama:11434 use karenge
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://ollama:11434")
 EMBEDDING_MODEL = "nomic-embed-text"
 CHAT_MODEL = "llama3.2"
@@ -110,19 +108,20 @@ def generate_answer(prompt, llm, context: str, question: str) -> str:
 def initialize_rag():
     DOCS_FOLDER = "data/docs"
 
-    if not os.path.exists(VECTOR_DB_DIR):
+    
+    if os.path.exists(VECTOR_DB_DIR) and os.listdir(VECTOR_DB_DIR):
+        print("Loading existing vector database...")
+        vector_store = build_vector_store()
+    else:
         print("Building vector database from documents...")
         chunks = load_and_split_documents(DOCS_FOLDER)
+        
         if not chunks:
-            print("No documents found or chunks created. Skipping vector store creation.")
-            # Dummy return to prevent crash if empty
+            print("❌ No documents found! Please add PDFs to data/docs")
             embeddings = OllamaEmbeddings(model=EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
             vector_store = Chroma(embedding_function=embeddings, persist_directory=VECTOR_DB_DIR)
         else:
             vector_store = build_vector_store(chunks)
-    else:
-        print("Loading existing vector database...")
-        vector_store = build_vector_store()
 
     retriever, prompt, llm = build_rag_components(vector_store)
     return retriever, prompt, llm

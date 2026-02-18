@@ -1,4 +1,8 @@
-venv/
-chroma_db_local/
 __pycache__/
+*.pyc
+venv/
 .env
+chroma_db_local/
+ollama_storage/
+data/docs/*
+!data/docs/.keep

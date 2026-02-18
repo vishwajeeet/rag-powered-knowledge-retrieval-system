@@ -1,6 +1,6 @@
 # Base image
 FROM python:3.11-slim
-
+ENV PYTHONUNBUFFERED=1
 
 # Set working directory
 WORKDIR /app

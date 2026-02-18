@@ -10,6 +10,9 @@ services:
     networks:
       - rag_net
     restart: always
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
 
   # 2. FASTAPI SERVICE
   fastapi_app:
